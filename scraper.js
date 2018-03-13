@@ -1,11 +1,25 @@
+require('isomorphic-fetch');
+
 require('dotenv').config();
+const redis = require('redis');
+const cheerio = require('cheerio');
+const util = require('util');
+
+const cacheTtl = 100000;
+
+const redisOptions = {
+  url: 'redis://127.0.0.1:6379/0'
+};
+
+const client = redis.createClient(redisOptions);
+
+const asyncSet = util.promisify(client.set).bind(client);
+const asyncGet = util.promisify(client.get).bind(client);
+const asyncDel = util.promisify(client.del).bind(client);
 
 /* todo require og stilla dót */
 
-/**
- * Listi af sviðum með „slug“ fyrir vefþjónustu og viðbættum upplýsingum til
- * að geta sótt gögn.
- */
+
 const departments = [
   {
     name: 'Félagsvísindasvið',
@@ -29,32 +43,54 @@ const departments = [
   },
 ];
 
-/**
- * Sækir svið eftir `slug`. Fáum gögn annaðhvort beint frá vef eða úr cache.
- *
- * @param {string} slug - Slug fyrir svið sem skal sækja
- * @returns {Promise} Promise sem mun innihalda gögn fyrir svið eða null ef það finnst ekki
- */
-async function getTests(slug) {
-  /* todo */
+
+async function get(url, cacheKey) {
+  const cached = await asyncGet(cacheKey);
+
+  if(cached) {
+    return cached;
+  }
+
+  const response = await fetch(url);
+  const text = await response.text();
+
+  await asyncSet(cacheKey, text, 'EX', cacheTtl);
+
+  return text;
 }
 
-/**
- * Hreinsar cache.
- *
- * @returns {Promise} Promise sem mun innihalda boolean um hvort cache hafi verið hreinsað eða ekki.
- */
+
+async function getTests() {
+  const text = await get('https://ugla.hi.is/Proftafla/View/index.php?view=proftaflaYfirlit&sid=2030&proftaflaID=37', 'ugla:proftafla');
+
+  const $ = cheerio.load(text);
+
+  const table = $('.box');
+
+  const tableArray = [];
+
+  table.each((i, el) => {
+    const tableRow = $(el).find('table').text();
+    console.log(tableRow);
+    tableArray.push(tableRow);
+  });
+
+  // console.log(table);
+  console.log(tableArray);
+
+  client.quit();
+}
+
+getTests().catch(err => console.error(err));
+
+
 async function clearCache() {
   /* todo */
 }
 
-/**
- * Sækir tölfræði fyrir öll próf allra deilda allra sviða.
- *
- * @returns {Promise} Promise sem mun innihalda object með tölfræði um próf
- */
+
 async function getStats() {
-  /* todo */
+  //todo
 }
 
 module.exports = {
