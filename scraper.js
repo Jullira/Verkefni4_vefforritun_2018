@@ -7,6 +7,8 @@ const util = require('util');
 
 const cacheTtl = 100000;
 
+const id = 1;
+
 const redisOptions = {
   url: 'redis://127.0.0.1:6379/0'
 };
@@ -61,22 +63,29 @@ async function get(url, cacheKey) {
 
 
 async function getTests() {
-  const text = await get('https://ugla.hi.is/Proftafla/View/index.php?view=proftaflaYfirlit&sid=2030&proftaflaID=37', 'ugla:proftafla');
+  const text = await get('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + id + '&notaVinnuToflu=0', 'ugla:proftafla');
+  const $ = cheerio.load(JSON.stringify(text));
+  // console.log(text);
 
-  const $ = cheerio.load(text);
-
-  const table = $('.box');
+  const box = $('.main-content div div h3');
+  // const h3 = box.next().text();
+  console.log(box.text());
 
   const tableArray = [];
 
-  table.each((i, el) => {
-    const tableRow = $(el).find('table').text();
-    console.log(tableRow);
-    tableArray.push(tableRow);
-  });
+  // console.log(h3);
+
+  // table.each((i, el) => {
+  //   const tableRow = $(el).find('tr');
+  //   // tableRow.each((i, el) => {
+  //   //   const 
+  //   // });
+  //   console.log(tableRow);
+  //   tableArray.push(tableRow);
+  // });
 
   // console.log(table);
-  console.log(tableArray);
+  // console.log(tableArray);
 
   client.quit();
 }
