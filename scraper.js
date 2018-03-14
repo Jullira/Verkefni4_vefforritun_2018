@@ -67,27 +67,28 @@ async function getTests() {
   const text = await response.text();
   const $ = cheerio.load(JSON.parse(text).html);
   const table = $('tbody');
-  // console.log(table);
   const testInfo = {'results': []};
+  const testS = [];
   const rowArray = [];
+
   table.each((i, el) => {
-    let studentsTotal = 0;
-    let tableInfo = {};
+    // let studentsTotal = 0;
+    // let tableInfo = {};
     const row = $(el).find('tr');
-    // console.log('j ' + j);
+
     row.each((i, el) => {
-      // console.log('i ' + i);
       const prof = $(el).children('td').eq(1).text();
       rowArray.push(prof);
-      studentsTotal += parseInt($(el).children('td').eq(3).text());
-      tableInfo.count = studentsTotal;
+      // studentsTotal += parseInt($(el).children('td').eq(3).text());
+      // tableInfo.count = studentsTotal;
     });
-    testInfo.results.push(tableInfo);
+    // testInfo.results.push(tableInfo);
   });
   
   console.log(rowArray);
-  console.log(rowArray.length);
-  console.log(testInfo);
+  // console.log(rowArray.length);
+  // console.log(testInfo);
+
   client.quit();
 }
 
