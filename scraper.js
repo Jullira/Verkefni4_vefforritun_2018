@@ -5,7 +5,7 @@ const redis = require('redis');
 const cheerio = require('cheerio');
 const util = require('util');
 
-const cacheTtl = 100000;
+const cacheTtl = 1000;
 
 const id = 1;
 
@@ -63,18 +63,18 @@ async function get(url, cacheKey) {
 
 
 async function getTests() {
-  const text = await get('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + id + '&notaVinnuToflu=0', 'ugla:proftafla');
-  const $ = cheerio.load(JSON.stringify(text));
-  // console.log(text);
-
-  const box = $('.main-content div div h3');
-  // const h3 = box.next().text();
-  console.log(box.text());
-
+  const responce = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + id + '&notaVinnuToflu=0', 'ugla:proftafla');
+  const text = await responce.text();
+  const $ = cheerio.load(JSON.parse(text).html);
+  const table = $('tbody');
+  // console.log(table.length);
   const tableArray = [];
 
-  // console.log(h3);
+  table.each((i, el) => {
+    const prof = $('tr').children('td').eq(1).text();
+  })
 
+  console.log(tableArray);
   // table.each((i, el) => {
   //   const tableRow = $(el).find('tr');
   //   // tableRow.each((i, el) => {
