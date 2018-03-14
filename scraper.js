@@ -7,8 +7,6 @@ const util = require('util');
 
 const cacheTtl = 100000;
 
-const id = 1;
-
 const redisOptions = {
   url: 'redis://127.0.0.1:6379/0'
 };
@@ -19,29 +17,31 @@ const asyncSet = util.promisify(client.set).bind(client);
 const asyncGet = util.promisify(client.get).bind(client);
 const asyncDel = util.promisify(client.del).bind(client);
 
-/* todo require og stilla dót */
-
-
 const departments = [
   {
     name: 'Félagsvísindasvið',
     slug: 'felagsvisindasvid',
+    id: 1,
   },
   {
     name: 'Heilbrigðisvísindasvið',
     slug: 'heilbrigdisvisindasvid',
+    id: 2,
   },
   {
     name: 'Hugvísindasvið',
     slug: 'hugvisindasvid',
+    id: 3,
   },
   {
     name: 'Menntavísindasvið',
     slug: 'menntavisindasvid',
+    id: 4,
   },
   {
     name: 'Verkfræði- og náttúruvísindasvið',
     slug: 'verkfraedi-og-natturuvisindasvid',
+    id: 5,
   },
 ];
 
@@ -62,32 +62,44 @@ async function get(url, cacheKey) {
 }
 
 
-async function getTests() {
-  const response = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + id + '&notaVinnuToflu=0', 'ugla:proftafla');
+async function getTests(slug) {
+  const department = departments.filter(department => department.slug === slug)[0];
+
+  if(!department) return null;
+
+  const response = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + department.id + '&notaVinnuToflu=0', 'ugla:' + slug);
   const text = await response.text();
   const $ = cheerio.load(JSON.parse(text).html);
-  const table = $('tbody');
-  const testInfo = {'results': []};
-  const testS = [];
-  const rowArray = [];
 
-  table.each((i, el) => {
-    // let studentsTotal = 0;
-    // let tableInfo = {};
-    const row = $(el).find('tr');
+  const containerHeader = $('.box > h3');
+  console.log(containerHeader);
 
-    row.each((i, el) => {
-      const prof = $(el).children('td').eq(1).text();
-      rowArray.push(prof);
-      // studentsTotal += parseInt($(el).children('td').eq(3).text());
-      // tableInfo.count = studentsTotal;
+  const tests = [];
+
+  containerHeader.each((i, el) => {
+    const header = $(el);
+    const table = $(header).next();
+    const tableBody = $(table).find('tbody');
+    const tableData = [];
+
+    tableBody.children().each((j, row) => {
+      const tableElement = $(row).children();
+      tableData.push({
+        course: $(tableElement[0]).text(),
+        name: $(tableElement[1]).text(),
+        Type: $(tableElement[2]).text(),
+        Students: $(tableElement[3]).text(),
+        Time: $(tableElement[4]).text(),
+      });
     });
-    // testInfo.results.push(tableInfo);
+
+    tests.push({
+      Header: header.text().trim(),
+      Tests: tableData,
+    });
   });
-  
-  console.log(rowArray);
-  // console.log(rowArray.length);
-  // console.log(testInfo);
+
+  return tests;
 
   client.quit();
 }
@@ -101,7 +113,41 @@ async function clearCache() {
 
 
 async function getStats() {
-  //todo
+  const department = departments.filter(department => department.slug === slug)[0];
+
+  if(!department) return null;
+
+  const response = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + department.id + '&notaVinnuToflu=0', 'ugla:' + slug);
+  const text = await response.text();
+  const $ = cheerio.load(JSON.parse(text).html);
+
+  const containerHeader = $('.box > h3');
+  console.log(containerHeader);
+
+  const stats = [];
+  const students;
+
+  containerHeader.each((i, el) => {
+    const header = $(el);
+    const table = $(header).next();
+    const tableBody = $(table).find('tbody');
+    
+    tableBody.children().each((j, row) => {
+      const tableElement = $(row).children();
+      students += parseInt($(tableElement[3].text());
+      });
+
+      stats.push({
+        course: $(tableElement[0]).text(),
+        name: $(tableElement[1]).text(),
+        Type: $(tableElement[2]).text(),
+        Students: students,
+        Time: $(tableElement[4]).text(),
+    });
+    
+    return stats;
+
+    client.quit();
 }
 
 module.exports = {
