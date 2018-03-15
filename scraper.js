@@ -15,7 +15,7 @@ const client = redis.createClient(redisOptions);
 
 const asyncSet = util.promisify(client.set).bind(client);
 const asyncGet = util.promisify(client.get).bind(client);
-const asyncDel = util.promisify(client.del).bind(client);
+const asyncFlush = util.promisify(client.flushall).bind(client);
 
 // declare-a departments variable.
 const departments = [
@@ -64,24 +64,21 @@ async function get(url, cacheKey) {
 
 // Nær í upplýsingar um próf fyrir hvert svið.
 async function getTests(slug) {
-
   // filterar út allt úr departments nema id.
   const department = departments.filter(department => department.slug === slug)[0];
   if (!department) return null;
 
   // Initialize html fyrir Cheerio
-  const response = await fetch(`https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=${department.id}&notaVinnuToflu=0`, slug);
-  const text = await response.text();
+  const text = await get(`https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=${department.id}&notaVinnuToflu=0`, slug);
   const $ = cheerio.load(JSON.parse(text).html);
 
   // Assign variables
-  const containerHeader = $('.box > h3');
+  const h3 = $('.box > h3');
   const tests = [];
 
   // create an array for all tables
-  containerHeader.each((i, el) => {
-    const header = $(el);
-    const table = $(header).next();
+  h3.each((i, el) => {
+    const table = $(el).next();
     const tableBody = $(table).find('tbody');
     const tableData = [];
 
@@ -99,7 +96,7 @@ async function getTests(slug) {
 
     // Push tableData into tests for returning
     tests.push({
-      Header: header.text().trim(),
+      Header: h3.text().trim(),
       Tests: tableData,
     });
   });
@@ -112,20 +109,15 @@ getTests().catch(err => console.error(err));
 
 
 async function clearCache() {
-  /* todo */
+  asyncFlush();
 }
 
 // Nær í gögn út frá URL og reiknar út tölfræði sem þarf til að skila í stats
-async function getStats(slug) {
-  // const department = departments.filter(department => department.slug === slug)[0];
-
-  // if (!department) return null;
-
-  const response = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=0&notaVinnuToflu=0', slug);
-  const text = await response.text();
+async function getStats() {
+  const text = await get('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=0&notaVinnuToflu=0', 'Allt');
   const $ = cheerio.load(JSON.parse(text).html);
 
-  const containerHeader = $('.box > h3');
+  const h3 = $('.box > h3');
 
   // Declaring variables.
   const stats = [];
@@ -135,9 +127,8 @@ async function getStats(slug) {
   let maxStudents = -Infinity;
 
   // Finnum header fyrir hverja töflu til að nálgast gögnin
-  containerHeader.each((i, el) => {
-    const header = $(el);
-    const table = $(header).next();
+  h3.each((i, el) => {
+    const table = $(el).next();
     const tableBody = $(table).find('tbody');
 
     // Ítra í gegnum tbody element og finna allt data sem við þurfum og reikna það sem þarf
@@ -167,7 +158,7 @@ async function getStats(slug) {
     test_with_most_students: maxStudents,
     test_with_fewest_studets: minStudents,
   });
-  //Skila stats
+  // Skila stats
   return stats;
 }
 
