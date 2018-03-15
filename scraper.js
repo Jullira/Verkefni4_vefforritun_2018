@@ -8,7 +8,7 @@ const util = require('util');
 const cacheTtl = 100000;
 
 const redisOptions = {
-  url: 'redis://127.0.0.1:6379/0'
+  url: 'redis://127.0.0.1:6379/0',
 };
 
 const client = redis.createClient(redisOptions);
@@ -17,6 +17,7 @@ const asyncSet = util.promisify(client.set).bind(client);
 const asyncGet = util.promisify(client.get).bind(client);
 const asyncDel = util.promisify(client.del).bind(client);
 
+// declare-a departments variable.
 const departments = [
   {
     name: 'Félagsvísindasvið',
@@ -49,7 +50,7 @@ const departments = [
 async function get(url, cacheKey) {
   const cached = await asyncGet(cacheKey);
 
-  if(cached) {
+  if (cached) {
     return cached;
   }
 
@@ -61,27 +62,30 @@ async function get(url, cacheKey) {
   return text;
 }
 
-
+// Nær í upplýsingar um próf fyrir hvert svið.
 async function getTests(slug) {
+
+  // filterar út allt úr departments nema id.
   const department = departments.filter(department => department.slug === slug)[0];
+  if (!department) return null;
 
-  if(!department) return null;
-
-  const response = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + department.id + '&notaVinnuToflu=0', 'ugla:' + slug);
+  // Initialize html fyrir Cheerio
+  const response = await fetch(`https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=${department.id}&notaVinnuToflu=0`, slug);
   const text = await response.text();
   const $ = cheerio.load(JSON.parse(text).html);
 
+  // Assign variables
   const containerHeader = $('.box > h3');
-  console.log(containerHeader);
-
   const tests = [];
 
+  // create an array for all tables
   containerHeader.each((i, el) => {
     const header = $(el);
     const table = $(header).next();
     const tableBody = $(table).find('tbody');
     const tableData = [];
 
+    // gets data from table and pushes into tableData
     tableBody.children().each((j, row) => {
       const tableElement = $(row).children();
       tableData.push({
@@ -93,15 +97,15 @@ async function getTests(slug) {
       });
     });
 
+    // Push tableData into tests for returning
     tests.push({
       Header: header.text().trim(),
       Tests: tableData,
     });
   });
 
+  // Return tests array
   return tests;
-
-  client.quit();
 }
 
 getTests().catch(err => console.error(err));
@@ -111,44 +115,63 @@ async function clearCache() {
   /* todo */
 }
 
+// Nær í gögn út frá URL og reiknar út tölfræði sem þarf til að skila í stats
+async function getStats(slug) {
+  // const department = departments.filter(department => department.slug === slug)[0];
 
-async function getStats() {
-  const department = departments.filter(department => department.slug === slug)[0];
+  // if (!department) return null;
 
-  if(!department) return null;
-
-  const response = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=' + department.id + '&notaVinnuToflu=0', 'ugla:' + slug);
+  const response = await fetch('https://ugla.hi.is/Proftafla/View/ajax.php?sid=2027&a=getProfSvids&proftaflaID=37&svidID=0&notaVinnuToflu=0', slug);
   const text = await response.text();
   const $ = cheerio.load(JSON.parse(text).html);
 
   const containerHeader = $('.box > h3');
-  console.log(containerHeader);
 
+  // Declaring variables.
   const stats = [];
-  const students;
+  let students = 0;
+  let sumTests = 0;
+  let minStudents = Infinity;
+  let maxStudents = -Infinity;
 
+  // Finnum header fyrir hverja töflu til að nálgast gögnin
   containerHeader.each((i, el) => {
     const header = $(el);
     const table = $(header).next();
     const tableBody = $(table).find('tbody');
-    
+
+    // Ítra í gegnum tbody element og finna allt data sem við þurfum og reikna það sem þarf
     tableBody.children().each((j, row) => {
       const tableElement = $(row).children();
-      students += parseInt($(tableElement[3].text());
-      });
+      sumTests += 1;
+      students += parseInt($(tableElement[3]).text());
+      const student = parseInt($(tableElement[3]).text());
 
-      stats.push({
-        course: $(tableElement[0]).text(),
-        name: $(tableElement[1]).text(),
-        Type: $(tableElement[2]).text(),
-        Students: students,
-        Time: $(tableElement[4]).text(),
+      if (student < minStudents) {
+        minStudents = student;
+      }
+
+      if (student > maxStudents) {
+        maxStudents = student;
+      }
     });
-    
-    return stats;
+  });
 
-    client.quit();
+  const avgStudents = parseInt(students / sumTests);
+
+  // Pusha í stats
+  stats.push({
+    Number_of_tests: sumTests,
+    Students: students,
+    Average_num_of_students_per_test: avgStudents,
+    test_with_most_students: maxStudents,
+    test_with_fewest_studets: minStudents,
+  });
+  //Skila stats
+  return stats;
 }
+
+getStats().catch(err => console.error(err));
 
 module.exports = {
   departments,
